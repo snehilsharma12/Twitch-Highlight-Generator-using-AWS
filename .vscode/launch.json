@@ -1,0 +1,32 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Current File",
+      "request": "launch",
+      "mainClass": "${file}",
+      "env": {
+        "AWS_ACCESS_ID": "qfUcQRJDhc+boZDRc/Q4bmBW5GnLJFRuwYToScAp",
+        "AWS_ACCESS_KEY": "AKIA2ESGRN763DVU6DNV",
+        "AWS_ENVIRONMENT": "true",
+        "RDS_HOSTNAME": "twitchdatabase.cfo1osmhodmt.us-east-1.rds.amazonaws.com",
+        "RDS_PORT": "3306",
+        "RDS_DB_NAME": "TwitchDatabase",
+        "RDS_USERNAME": "root",
+        "RDS_PASSWORD": "root1234",
+        "MONGODB_PASSWORD": "twitch"
+      }
+    },
+    {
+      "type": "java",
+      "name": "BotConnectApplication",
+      "request": "launch",
+      "mainClass": "com.twitch.bot.BotConnectApplication",
+      "projectName": "bot"
+    }
+  ]
+}

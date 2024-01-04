@@ -1,0 +1,33 @@
+version: 1
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - echo "$PWD"
+            - npm ci
+        build:
+          commands:
+            - echo "$PWD"
+            - VITE_IS_AWS_BUILD=${VITE_IS_AWS_BUILD}
+            - echo "VITE_IS_AWS_BUILD=$VITE_IS_AWS_BUILD" >> .env
+            - VITE_BACKEND_AWS_URL=${VITE_BACKEND_AWS_URL}
+            - echo "VITE_BACKEND_AWS_URL=$VITE_BACKEND_AWS_URL" >> .env
+            - VITE_AWS_REGION=${VITE_AWS_REGION}
+            - echo "VITE_AWS_REGION=$VITE_AWS_REGION" >> .env
+            - VITE_AWS_SQS_URL=${VITE_AWS_SQS_URL}
+            - echo "VITE_AWS_SQS_URL=$VITE_AWS_SQS_URL" >> .env
+            - VITE_AWS_ACCESS_ID=${VITE_AWS_ACCESS_ID}
+            - echo "VITE_AWS_ACCESS_ID=$VITE_AWS_ACCESS_ID" >> .env
+            - VITE_AWS_ACCESS_KEY=${VITE_AWS_ACCESS_KEY}
+            - echo "VITE_AWS_ACCESS_KEY=$VITE_AWS_ACCESS_KEY" >> .env
+            - npm run build
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - echo "$PWD"
+          - node_modules/**/*
+    appRoot: frontend/Twitchapp

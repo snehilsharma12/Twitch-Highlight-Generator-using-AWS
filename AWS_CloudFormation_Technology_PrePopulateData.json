@@ -1,0 +1,826 @@
+{
+    "Description": "CloudFormation For AWS Twitch Integration",
+    "Resources": {
+      "IAMRole": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+          "Path": "/",
+          "RoleName": "aws-twitchapp-elasticbeanstalk-service-role",
+          "AssumeRolePolicyDocument": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"elasticbeanstalk.amazonaws.com\"},\"Action\":\"sts:AssumeRole\",\"Condition\":{\"StringEquals\":{\"sts:ExternalId\":\"elasticbeanstalk\"}}}]}",
+          "MaxSessionDuration": 3600,
+          "ManagedPolicyArns": [
+            "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth",
+            "arn:aws:iam::aws:policy/IAMFullAccess",
+            "arn:aws:iam::aws:policy/AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy"
+          ]
+        }
+      },
+      "IAMRole2": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+          "Path": "/service-role/",
+          "RoleName": {
+            "Fn::Sub": "AWSCodePipelineServiceRole-${AWS::Region}-twitchapp"
+          },
+          "AssumeRolePolicyDocument": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"codepipeline.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+          "MaxSessionDuration": 3600,
+          "ManagedPolicyArns": [
+            {
+              "Ref": "IAMManagedPolicy"
+            },
+            "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+          ]
+        }
+      },
+      "IAMRole3": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+          "Path": "/",
+          "RoleName": {
+            "Fn::Sub": "aws-elasticbeanstalk-${AWS::Region}-ec2-role-twitchapp"
+          },
+          "AssumeRolePolicyDocument": "{\"Version\":\"2008-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ec2.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+          "MaxSessionDuration": 3600,
+          "ManagedPolicyArns": [
+            "arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker",
+            "arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier",
+            "arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier",
+            "arn:aws:iam::aws:policy/AdministratorAccess-AWSElasticBeanstalk",
+            "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+          ]
+        }
+      },
+      "IAMRole4": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+          "Path": "/service-role/",
+          "RoleName": "codebuild-twitchapp",
+          "AssumeRolePolicyDocument": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"codebuild.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+          "MaxSessionDuration": 3600,
+          "ManagedPolicyArns": [
+            "arn:aws:iam::aws:policy/AdministratorAccess"
+          ]
+        }
+      },
+      "IamUser": {
+        "Type": "AWS::IAM::User",
+        "Properties": {
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/AdministratorAccess"
+        ],
+        "UserName": "twitchAppRoot"
+      }
+      },
+      "IAMInstanceProfile": {
+        "Type": "AWS::IAM::InstanceProfile",
+        "Properties": {
+          "Path": "/",
+          "InstanceProfileName": {
+            "Ref": "IAMRole3"
+          },
+          "Roles": [{
+            "Ref": "IAMRole3"
+          }]
+        }
+      },
+      "IAMManagedPolicy": {
+        "Type": "AWS::IAM::ManagedPolicy",
+        "Properties": {
+          "ManagedPolicyName": {
+            "Fn::Sub": "AWSCodePipelineServiceRole-${AWS::Region}-twitchapp"
+          },
+          "Path": "/service-role/",
+          "PolicyDocument": "{\n    \"Statement\": [\n        {\n            \"Action\": [\n                \"iam:PassRole\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\",\n            \"Condition\": {\n                \"StringEqualsIfExists\": {\n                    \"iam:PassedToService\": [\n                        \"cloudformation.amazonaws.com\",\n                        \"elasticbeanstalk.amazonaws.com\",\n                        \"ec2.amazonaws.com\",\n                        \"ecs-tasks.amazonaws.com\"\n                    ]\n                }\n            }\n        },\n        {\n            \"Action\": [\n                \"codecommit:CancelUploadArchive\",\n                \"codecommit:GetBranch\",\n                \"codecommit:GetCommit\",\n                \"codecommit:GetRepository\",\n                \"codecommit:GetUploadArchiveStatus\",\n                \"codecommit:UploadArchive\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\"\n        },\n        {\n            \"Action\": [\n                \"codedeploy:CreateDeployment\",\n                \"codedeploy:GetApplication\",\n                \"codedeploy:GetApplicationRevision\",\n                \"codedeploy:GetDeployment\",\n                \"codedeploy:GetDeploymentConfig\",\n                \"codedeploy:RegisterApplicationRevision\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\"\n        },\n        {\n            \"Action\": [\n                \"codestar-connections:UseConnection\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\"\n        },\n        {\n            \"Action\": [\n                \"elasticbeanstalk:*\",\n                \"ec2:*\",\n                \"elasticloadbalancing:*\",\n                \"autoscaling:*\",\n                \"cloudwatch:*\",\n                \"s3:*\",\n                \"sns:*\",\n                \"cloudformation:*\",\n                \"rds:*\",\n                \"sqs:*\",\n                \"ecs:*\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\"\n        },\n        {\n            \"Action\": [\n                \"lambda:InvokeFunction\",\n                \"lambda:ListFunctions\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\"\n        },\n        {\n            \"Action\": [\n                \"opsworks:CreateDeployment\",\n                \"opsworks:DescribeApps\",\n                \"opsworks:DescribeCommands\",\n                \"opsworks:DescribeDeployments\",\n                \"opsworks:DescribeInstances\",\n                \"opsworks:DescribeStacks\",\n                \"opsworks:UpdateApp\",\n                \"opsworks:UpdateStack\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\"\n        },\n        {\n            \"Action\": [\n                \"cloudformation:CreateStack\",\n                \"cloudformation:DeleteStack\",\n                \"cloudformation:DescribeStacks\",\n                \"cloudformation:UpdateStack\",\n                \"cloudformation:CreateChangeSet\",\n                \"cloudformation:DeleteChangeSet\",\n                \"cloudformation:DescribeChangeSet\",\n                \"cloudformation:ExecuteChangeSet\",\n                \"cloudformation:SetStackPolicy\",\n                \"cloudformation:ValidateTemplate\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\"\n        },\n        {\n            \"Action\": [\n                \"codebuild:BatchGetBuilds\",\n                \"codebuild:StartBuild\",\n                \"codebuild:BatchGetBuildBatches\",\n                \"codebuild:StartBuildBatch\"\n            ],\n            \"Resource\": \"*\",\n            \"Effect\": \"Allow\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"devicefarm:ListProjects\",\n                \"devicefarm:ListDevicePools\",\n                \"devicefarm:GetRun\",\n                \"devicefarm:GetUpload\",\n                \"devicefarm:CreateUpload\",\n                \"devicefarm:ScheduleRun\"\n            ],\n            \"Resource\": \"*\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"servicecatalog:ListProvisioningArtifacts\",\n                \"servicecatalog:CreateProvisioningArtifact\",\n                \"servicecatalog:DescribeProvisioningArtifact\",\n                \"servicecatalog:DeleteProvisioningArtifact\",\n                \"servicecatalog:UpdateProduct\"\n            ],\n            \"Resource\": \"*\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"cloudformation:ValidateTemplate\"\n            ],\n            \"Resource\": \"*\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"ecr:DescribeImages\"\n            ],\n            \"Resource\": \"*\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"states:DescribeExecution\",\n                \"states:DescribeStateMachine\",\n                \"states:StartExecution\"\n            ],\n            \"Resource\": \"*\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"appconfig:StartDeployment\",\n                \"appconfig:StopDeployment\",\n                \"appconfig:GetDeployment\"\n            ],\n            \"Resource\": \"*\"\n        }\n    ],\n    \"Version\": \"2012-10-17\"\n}\n"
+        }
+      },
+      "S3Bucket2": {
+        "Type": "AWS::S3::Bucket",
+        "Properties": {
+          "BucketName": {
+            "Fn::Sub": "codepipeline-${AWS::Region}-162902136482"
+          },
+          "BucketEncryption": {
+            "ServerSideEncryptionConfiguration": [
+              {
+                "ServerSideEncryptionByDefault": {
+                  "SSEAlgorithm": "AES256"
+                },
+                "BucketKeyEnabled": false
+              }
+            ]
+          }
+        }
+      },
+      "S3BucketPolicy2": {
+        "Type": "AWS::S3::BucketPolicy",
+        "Properties": {
+          "Bucket": {
+            "Ref": "S3Bucket2"
+          },
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Id": "SSEAndSSLPolicy",
+            "Statement": [
+              {
+                "Sid": "DenyUnEncryptedObjectUploads",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:PutObject",
+                "Resource": {
+                  "Fn::Sub": "arn:aws:s3:::${S3Bucket2}/*"
+                },
+                "Condition": {
+                  "StringNotEquals": {
+                    "s3:x-amz-server-side-encryption": "aws:kms"
+                  }
+                }
+              },
+              {
+                "Sid": "DenyInsecureConnections",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:*",
+                "Resource": {
+                  "Fn::Sub": "arn:aws:s3:::${S3Bucket2}/*"
+                },
+                "Condition": {
+                  "Bool": {
+                    "aws:SecureTransport": "false"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ElasticBeanstalkApplication": {
+        "Type": "AWS::ElasticBeanstalk::Application",
+        "Properties": {
+          "ApplicationName": "TwitchApp"
+        }
+      },
+      "ElasticBeanstalkEnvironment": {
+        "Type": "AWS::ElasticBeanstalk::Environment",
+        "DependsOn":[
+          "ElasticBeanstalkApplication",
+          "IAMRole3",
+          "ElasticBeanstalkConfigurationTemplate"
+        ],
+        "Properties": {
+          "EnvironmentName": "TwitchApp-environment",
+          "ApplicationName": {
+            "Ref": "ElasticBeanstalkApplication"
+          },
+          "Tier": {
+            "Name": "WebServer",
+            "Type": "Standard"
+          },
+          "TemplateName":{
+            "Ref":"ElasticBeanstalkConfigurationTemplate"
+          },
+          "OptionSettings": [
+            {
+              "Namespace": "aws:autoscaling:launchconfiguration",
+              "OptionName": "IamInstanceProfile",
+              "Value": {
+                "Ref": "IAMRole3"
+              }
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment",
+              "OptionName": "ServiceRole",
+              "Value": {
+                "Ref": "IAMRole"
+              }
+            }
+          ],
+          "CNAMEPrefix": {
+            "Fn::Sub": "twitchaws-${AWS::AccountId}"
+          }
+        }
+      },
+      "ElasticBeanstalkConfigurationTemplate": {
+        "Type": "AWS::ElasticBeanstalk::ConfigurationTemplate",
+        "DependsOn":[
+          "SNSTopic",
+          "IAMRole3"
+        ],
+        "Properties": {
+          "ApplicationName": {
+            "Ref": "ElasticBeanstalkApplication"
+          },
+          "SolutionStackName": "64bit Amazon Linux 2 v3.4.6 running Corretto 17",
+          "OptionSettings": [
+            {
+              "Namespace": "aws:ec2:instances",
+              "OptionName": "InstanceTypes",
+              "Value": "t3.micro,t3.small"
+            },
+            {
+              "Namespace": "aws:ec2:instances",
+              "OptionName": "SupportedArchitectures",
+              "Value": "x86_64"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application",
+              "OptionName": "Application Healthcheck URL",
+              "Value": "/"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:healthreporting:system",
+              "OptionName": "SystemType",
+              "Value": "enhanced"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:managedactions",
+              "OptionName": "ManagedActionsEnabled",
+              "Value": "true"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:managedactions",
+              "OptionName": "PreferredStartTime",
+              "Value": "THU:03:27"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:managedactions",
+              "OptionName": "ServiceRoleForManagedUpdates",
+              "Value": {
+                "Ref": "IAMRole"
+              }
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:managedactions:platformupdate",
+              "OptionName": "UpdateLevel",
+              "Value": "minor"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AWS_ENVIRONMENT",
+              "Value": "true"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AWS_ACCESS_ID",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:ACCESS_ID}}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AWS_ACCESS_KEY",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:ACCESS_KEY}}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "RDS_USERNAME",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:RDS_USERNAME}}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "RDS_PASSWORD",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:RDS_PASSWORD}}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "MONGODB_PASSWORD",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:MONGODB_PASSWORD}}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AWS_REGION",
+              "Value": {
+                "Ref": "AWS::Region"
+              }
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AWS_ACCOUNT_ID",
+              "Value": {
+                "Ref": "AWS::AccountId"
+              }
+            },
+ 	    {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "PREPOPULATE_DB",
+              "Value": "true"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "SNS_QUEUE",
+              "Value":  {
+                "Fn::GetAtt": [
+                  "SNSTopic",
+                  "TopicArn"
+                ]
+              }
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "GRADLE_HOME",
+              "Value": "/usr/local/gradle"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "M2",
+              "Value": "/usr/local/apache-maven/bin"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "M2_HOME",
+              "Value": "/usr/local/apache-maven"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:cloudwatch:logs",
+              "OptionName": "RetentionInDays",
+              "Value": "1"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:cloudwatch:logs",
+              "OptionName": "StreamLogs",
+              "Value": "true"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment",
+              "OptionName": "EnvironmentType",
+              "Value": "SingleInstance"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment",
+              "OptionName": "ServiceRole",
+              "Value": {
+                "Ref": "IAMRole"
+              }
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "DBAllocatedStorage",
+              "Value": "5"
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "DBDeletionPolicy",
+              "Value": "Delete"
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "DBEngine",
+              "Value": "mysql"
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "DBEngineVersion",
+              "Value": "8.0.32"
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "DBInstanceClass",
+              "Value": "db.t2.micro"
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "DBPassword",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:RDS_PASSWORD}}"
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "DBUser",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:RDS_USERNAME}}"
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "HasCoupledDatabase",
+              "Value": "true"
+            },
+            {
+              "ResourceName": "AWSEBRDSDatabase",
+              "Namespace": "aws:rds:dbinstance",
+              "OptionName": "MultiAZDatabase",
+              "Value": "false"
+            }
+          ]
+        }
+      },
+      "ApiGatewayRestApi": {
+        "Type": "AWS::ApiGateway::RestApi",
+        "Properties": {
+          "Name": "twitchapi",
+          "ApiKeySourceType": "HEADER",
+          "EndpointConfiguration": {
+            "Types": [
+              "REGIONAL"
+            ]
+          }
+        }
+      },
+      "ApiGatewayStage": {
+        "Type": "AWS::ApiGateway::Stage",
+        "Properties": {
+          "StageName": "prod",
+          "DeploymentId": {
+            "Ref": "ApiGatewayDeployment"
+          },
+          "RestApiId": {
+            "Ref": "ApiGatewayRestApi"
+          },
+          "CacheClusterEnabled": false,
+          "TracingEnabled": false
+        }
+      },
+      "ApiGatewayDeployment": {
+        "Type": "AWS::ApiGateway::Deployment",
+        "DependsOn":[
+          "ApiGatewayMethod"
+        ],
+        "Properties": {
+          "RestApiId": {
+            "Ref": "ApiGatewayRestApi"
+          }
+        }
+      },
+      "ApiGatewayResource": {
+        "Type": "AWS::ApiGateway::Resource",
+        "Properties": {
+          "RestApiId": {
+            "Ref": "ApiGatewayRestApi"
+          },
+          "PathPart": "{proxy+}",
+          "ParentId": {
+            "Fn::GetAtt": [
+              "ApiGatewayRestApi",
+              "RootResourceId"
+            ]
+          }
+        }
+      },
+      "ApiGatewayMethod": {
+        "Type": "AWS::ApiGateway::Method",
+        "Properties": {
+          "RestApiId": {
+            "Ref": "ApiGatewayRestApi"
+          },
+          "ResourceId": {
+            "Ref": "ApiGatewayResource"
+          },
+          "HttpMethod": "ANY",
+          "AuthorizationType": "NONE",
+          "ApiKeyRequired": false,
+          "RequestParameters": {
+            "method.request.path.proxy": true
+          },
+          "Integration": {
+            "CacheKeyParameters": [
+              "method.request.path.proxy"
+            ],
+            "CacheNamespace": {
+              "Ref": "ApiGatewayResource"
+            },
+            "ConnectionType": "INTERNET",
+            "IntegrationHttpMethod": "ANY",
+            "IntegrationResponses": [
+              {
+                "ResponseTemplates": {},
+                "StatusCode": "200"
+              }
+            ],
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "RequestParameters": {
+              "integration.request.path.proxy": "method.request.path.proxy"
+            },
+            "TimeoutInMillis": 29000,
+            "Type": "HTTP_PROXY",
+            "Uri": {
+              "Fn::Sub": "http://twitchaws-${AWS::AccountId}.${AWS::Region}.elasticbeanstalk.com/{proxy}"
+            }
+          }
+        }
+      },
+      "CodeBuildProject": {
+        "Type": "AWS::CodeBuild::Project",
+        "Properties": {
+          "Name": "TwitchBuild",
+          "Source": {
+            "GitCloneDepth": 1,
+            "GitSubmodulesConfig": {
+              "FetchSubmodules": false
+            },
+            "InsecureSsl": false,
+            "Location": "https://github.com/swen-514-614-spr-2023-2/team-4.git",
+            "ReportBuildStatus": false,
+            "Type": "GITHUB",
+            "BuildSpec": "buildspec.yml"
+          },
+          "Artifacts": {
+            "Type": "NO_ARTIFACTS"
+          },
+          "Cache": {
+            "Type": "NO_CACHE"
+          },
+          "Environment": {
+            "ComputeType": "BUILD_GENERAL1_SMALL",
+            "Image": "aws/codebuild/amazonlinux2-x86_64-standard:4.0",
+            "ImagePullCredentialsType": "CODEBUILD",
+            "PrivilegedMode": false,
+            "Type": "LINUX_CONTAINER"
+          },
+          "ServiceRole": {
+            "Fn::GetAtt": [
+              "IAMRole4",
+              "Arn"
+            ]
+          },
+          "TimeoutInMinutes": 60,
+          "QueuedTimeoutInMinutes": 480,
+          "EncryptionKey": {
+            "Fn::Sub": "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3"
+          },
+          "BadgeEnabled": false,
+          "LogsConfig": {
+            "CloudWatchLogs": {
+              "Status": "ENABLED"
+            },
+            "S3Logs": {
+              "Status": "DISABLED",
+              "EncryptionDisabled": false
+            }
+          },
+          "Visibility": "PRIVATE"
+        }
+      },
+      "CodePipelinePipeline": {
+        "Type": "AWS::CodePipeline::Pipeline",
+        "Properties": {
+          "Name": "TwitchProject",
+          "RoleArn": {
+            "Fn::GetAtt": [
+              "IAMRole2",
+              "Arn"
+            ]
+          },
+          "ArtifactStore": {
+            "Location": {
+              "Ref": "S3Bucket2"
+            },
+            "Type": "S3"
+          },
+          "Stages": [
+            {
+              "Name": "Source",
+              "Actions": [
+                {
+                  "Name": "Source",
+                  "ActionTypeId": {
+                    "Category": "Source",
+                    "Owner": "ThirdParty",
+                    "Provider": "GitHub",
+                    "Version": "1"
+                  },
+                  "Configuration": {
+                    "Branch": "main",
+                    "OAuthToken": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:GITHUB_ACCESS_TOKEN}}",
+                    "Owner": "swen-514-614-spr-2023-2",
+                    "PollForSourceChanges": "false",
+                    "Repo": "team-4"
+                  },
+                  "OutputArtifacts": [
+                    {
+                      "Name": "SourceArtifact"
+                    }
+                  ],
+                  "Region": {
+                    "Ref": "AWS::Region"
+                  },
+                  "Namespace": "SourceVariables",
+                  "RunOrder": 1
+                }
+              ]
+            },
+            {
+              "Name": "Build",
+              "Actions": [
+                {
+                  "Name": "Build",
+                  "ActionTypeId": {
+                    "Category": "Build",
+                    "Owner": "AWS",
+                    "Provider": "CodeBuild",
+                    "Version": "1"
+                  },
+                  "Configuration": {
+                    "ProjectName": {
+                      "Ref": "CodeBuildProject"
+                    }
+                  },
+                  "InputArtifacts": [
+                    {
+                      "Name": "SourceArtifact"
+                    }
+                  ],
+                  "OutputArtifacts": [
+                    {
+                      "Name": "BuildArtifact"
+                    }
+                  ],
+                  "Region": {
+                    "Ref": "AWS::Region"
+                  },
+                  "Namespace": "BuildVariables",
+                  "RunOrder": 1
+                }
+              ]
+            },
+            {
+              "Name": "Deploy",
+              "Actions": [
+                {
+                  "Name": "Deploy",
+                  "ActionTypeId": {
+                    "Category": "Deploy",
+                    "Owner": "AWS",
+                    "Provider": "ElasticBeanstalk",
+                    "Version": "1"
+                  },
+                  "Configuration": {
+                    "ApplicationName": {
+                      "Ref": "ElasticBeanstalkApplication"
+                    },
+                    "EnvironmentName": {
+                      "Ref": "ElasticBeanstalkEnvironment"
+                    }
+                  },
+                  "InputArtifacts": [
+                    {
+                      "Name": "BuildArtifact"
+                    }
+                  ],
+                  "Region": {
+                    "Ref": "AWS::Region"
+                  },
+                  "Namespace": "DeployVariables",
+                  "RunOrder": 1
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "CodePipelineWebhook": {
+        "Type": "AWS::CodePipeline::Webhook",
+        "Properties": {
+          "AuthenticationConfiguration": {
+            "SecretToken": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:GITHUB_ACCESS_TOKEN}}"
+          },
+          "Filters": [
+            {
+              "JsonPath": "$.ref",
+              "MatchEquals": "refs/heads/main"
+            }
+          ],
+          "Authentication": "GITHUB_HMAC",
+          "TargetPipeline": {
+            "Ref": "CodePipelinePipeline"
+          },
+          "TargetAction": "Source",
+          "Name": "CodePipelineWebhook",
+          "TargetPipelineVersion": {
+            "Fn::GetAtt": [
+              "CodePipelinePipeline",
+              "Version"
+            ]
+          },
+          "RegisterWithThirdParty": "true"
+        }
+      },
+      "AmplifyApp": {
+        "Type": "AWS::Amplify::App",
+        "Properties": {
+          "Name": "team-4",
+          "Repository": "https://github.com/swen-514-614-spr-2023-2/team-4",
+          "EnvironmentVariables": [
+            {
+              "Name": "VITE_IS_AWS_BUILD",
+              "Value": "true"
+            },
+            {
+              "Name": "VITE_BACKEND_AWS_URL",
+              "Value": {
+                "Fn::Sub": "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${ApiGatewayStage}"
+              }
+            },
+            {
+              "Name": "VITE_AWS_ACCESS_ID",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:ACCESS_ID}}"
+            },
+            {
+              "Name": "VITE_AWS_ACCESS_KEY",
+              "Value": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:ACCESS_KEY}}"
+            },
+            {
+              "Name": "VITE_AWS_REGION",
+              "Value": {
+                "Ref": "AWS::Region"
+              }
+            },
+            {
+              "Name": "VITE_AWS_SQS_URL",
+              "Value":{
+                "Fn::GetAtt": [
+                  "SQSQueue",
+                  "QueueUrl"
+                ]
+              }
+            }
+          ],
+          "BuildSpec": "amplify.yml",
+          "AccessToken": "{{resolve:secretsmanager:TwitchIntegrationCredentials:SecretString:GITHUB_ACCESS_TOKEN}}"
+        }
+      },
+      "AmplifyBranch": {
+        "Type": "AWS::Amplify::Branch",
+        "Properties": {
+          "BranchName": "main",
+          "Stage": "PRODUCTION",
+          "AppId": {
+            "Fn::GetAtt": [
+              "AmplifyApp",
+              "AppId"
+            ]
+          },
+          "EnablePullRequestPreview": false,
+          "EnableAutoBuild": true,
+          "EnablePerformanceMode": false
+        }
+      },
+      "SNSTopic": {
+        "Type": "AWS::SNS::Topic",
+        "Properties": {
+          "DisplayName": "",
+          "TopicName": {
+            "Fn::GetAtt": [
+              "SQSQueue",
+              "QueueName"
+            ]
+          }
+        }
+      },
+      "SNSTopicPolicy": {
+        "Type": "AWS::SNS::TopicPolicy",
+        "Properties": {
+          "PolicyDocument": {
+            "Fn::Sub": "{\"Version\":\"2008-10-17\",\"Id\":\"__default_policy_ID\",\"Statement\":[{\"Sid\":\"__default_statement_ID\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"*\"},\"Action\":[\"SNS:GetTopicAttributes\",\"SNS:SetTopicAttributes\",\"SNS:AddPermission\",\"SNS:RemovePermission\",\"SNS:DeleteTopic\",\"SNS:Subscribe\",\"SNS:ListSubscriptionsByTopic\",\"SNS:Publish\"],\"Resource\":\"${SNSTopic}\",\"Condition\":{\"StringEquals\":{\"AWS:SourceOwner\":\"${AWS::AccountId}\"}}}]}"
+          },
+          "Topics": [
+            {
+              "Ref": "SNSTopic"
+            }
+          ]
+        }
+      },
+      "SNSSubscription": {
+        "Type": "AWS::SNS::Subscription",
+        "Properties": {
+          "TopicArn": {
+            "Ref": "SNSTopic"
+          },
+          "Endpoint": {
+            "Fn::Sub": "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${SNSTopic.TopicName}"
+          },
+          "Protocol": "sqs",
+          "RawMessageDelivery": "false",
+          "Region": {
+            "Ref": "AWS::Region"
+          }
+        }
+      },
+      "SQSQueue": {
+        "Type": "AWS::SQS::Queue",
+        "Properties": {
+          "DelaySeconds": "0",
+          "MaximumMessageSize": "262144",
+          "MessageRetentionPeriod": "86400",
+          "ReceiveMessageWaitTimeSeconds": "0",
+          "VisibilityTimeout": "30",
+          "QueueName": "TwitchSns"
+        }
+      },
+      "SQSQueuePolicy": {
+        "Type": "AWS::SQS::QueuePolicy",
+        "Properties": {
+          "PolicyDocument": {
+            "Fn::Sub": "{\"Version\":\"2012-10-17\",\"Id\":\"__default_policy_ID\",\"Statement\":[{\"Sid\":\"__owner_statement\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::${AWS::AccountId}:root\"},\"Action\":\"SQS:*\",\"Resource\":\"arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${SNSTopic.TopicName}\"},{\"Sid\":\"__sender_statement\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::${AWS::AccountId}:user/twitchAppRoot\"},\"Action\":\"SQS:SendMessage\",\"Resource\":\"arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${SNSTopic.TopicName}\"},{\"Sid\":\"__receiver_statement\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::${AWS::AccountId}:user/twitchAppRoot\"},\"Action\":[\"SQS:ChangeMessageVisibility\",\"SQS:DeleteMessage\",\"SQS:ReceiveMessage\"],\"Resource\":\"arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${SNSTopic.TopicName}\"},{\"Sid\":\"topic-subscription-${SNSTopic}\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"*\"},\"Action\":\"SQS:SendMessage\",\"Resource\":\"arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${SNSTopic.TopicName}\",\"Condition\":{\"ArnLike\":{\"aws:SourceArn\":\"${SNSTopic}\"}}}]}"
+          },
+          "Queues": [
+            {
+              "Fn::Sub": "https://sqs.${AWS::Region}.amazonaws.com/${AWS::AccountId}/${SNSTopic.TopicName}"
+            }
+          ]
+        }
+      }
+    }
+  }
+  

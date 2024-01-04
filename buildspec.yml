@@ -1,0 +1,35 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+    commands:
+      - echo install
+  build:
+    commands:
+      - cd Backend/
+      - mvn clean install
+      - mvn package
+      - echo build
+  post_build:
+    commands:
+      - echo "$PWD"
+      - cd ../
+      - echo "$PWD"
+      - cp -a Backend/target/*.jar app.jar
+      - mkdir -p populationdata
+      - cp -a Backend/populationdata/dynamoDb.json populationdata/dynamoDb.json
+      - cp -a Backend/src/main/resources/.ebextensions/logs.config logs.config
+      - cp -a Backend/src/main/resources/.ebextensions/tail-logs.config tail-logs.config
+      - cp -a Backend/src/main/resources/.ebextensions/https-instance-securitygroup.config https-instance-securitygroup.config
+      - echo Build completed
+artifacts:
+  files:
+    - app.jar
+    - scripts/*.sh
+    - appspec.yml
+    - logs.config
+    - tail-logs.config
+    - populationdata/*
+    - https-instance-securitygroup.config
